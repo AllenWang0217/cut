@@ -1,0 +1,1174 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Magellan by horance-liu</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-dark.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Magellan</h1>
+        <p>The Simple xUnit Implements in Modern C++11.</p>
+        <p class="view"><a href="https://github.com/horance-liu/magellan">View the Project on GitHub <small>horance-liu/magellan</small></a></p>
+        <ul>
+          <li><a href="https://github.com/horance-liu/magellan/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/horance-liu/magellan/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/horance-liu/magellan">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a id="magellan-a-simple-xunit-test-framework-in-modern-c11" class="anchor" href="#magellan-a-simple-xunit-test-framework-in-modern-c11" aria-hidden="true"><span class="octicon octicon-link"></span></a>Magellan: A Simple xUnit Test Framework in Modern C++11</h1>
+
+<h2>
+<a id="你无法忍受google-test的9个特性" class="anchor" href="#%E4%BD%A0%E6%97%A0%E6%B3%95%E5%BF%8D%E5%8F%97google-test%E7%9A%849%E4%B8%AA%E7%89%B9%E6%80%A7" aria-hidden="true"><span class="octicon octicon-link"></span></a>你无法忍受Google Test的9个特性</h2>
+
+<h3>
+<a id="用例描述必须遵循严格的标识符规则" class="anchor" href="#%E7%94%A8%E4%BE%8B%E6%8F%8F%E8%BF%B0%E5%BF%85%E9%A1%BB%E9%81%B5%E5%BE%AA%E4%B8%A5%E6%A0%BC%E7%9A%84%E6%A0%87%E8%AF%86%E7%AC%A6%E8%A7%84%E5%88%99" aria-hidden="true"><span class="octicon octicon-link"></span></a>用例描述必须遵循严格的标识符规则</h3>
+
+<p>这种严格的规则，虽然给Google Test的实现带来了诸多便捷之处，但这给用户造成了很大的负担。尤其当一个用例需要描述一个数学逻辑规则时，用例的表达力将大大折扣。</p>
+
+<div class="highlight highlight-cpp"><pre><span class="pl-en">TEST_F</span>(RobotCleanerTest, at_the_beginning_the_robot_should_be_in_at_the_initial_position)
+{
+    <span class="pl-c1">ASSERT_EQ</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, NORTH), robot.<span class="pl-c1">getPosition</span>());
+}</pre></div>
+
+<h3>
+<a id="贯穿着重复设计的坏味道" class="anchor" href="#%E8%B4%AF%E7%A9%BF%E7%9D%80%E9%87%8D%E5%A4%8D%E8%AE%BE%E8%AE%A1%E7%9A%84%E5%9D%8F%E5%91%B3%E9%81%93" aria-hidden="true"><span class="octicon octicon-link"></span></a>贯穿着“重复设计”的坏味道</h3>
+
+<p>如下例，每个<code>TEST_F</code>用例都要重复一次<code>RobotCleanerTest</code>。</p>
+
+<div class="highlight highlight-cpp"><pre><span class="pl-k">struct</span> <span class="pl-en">RobotCleanerTest</span> : testing::Test
+{
+<span class="pl-k">protected:</span>
+    RobotCleaner robot;
+};
+
+<span class="pl-en">TEST_F</span>(RobotCleanerTest, at_the_beginning_the_robot_should_be_in_at_the_initial_position)
+{
+    <span class="pl-c1">ASSERT_EQ</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, NORTH), robot.<span class="pl-c1">getPosition</span>());
+}
+
+<span class="pl-en">TEST_F</span>(RobotCleanerTest, should_be_face_west_after_turn_left)
+{
+   robot.<span class="pl-c1">turnLeft</span>();
+   <span class="pl-c1">ASSERT_EQ</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, WEST), robot.<span class="pl-c1">getPosition</span>());
+}</pre></div>
+
+<h3>
+<a id="fixture与test_f存在隐晦的继承关系" class="anchor" href="#fixture%E4%B8%8Etest_f%E5%AD%98%E5%9C%A8%E9%9A%90%E6%99%A6%E7%9A%84%E7%BB%A7%E6%89%BF%E5%85%B3%E7%B3%BB" aria-hidden="true"><span class="octicon octicon-link"></span></a>Fixture与TEST_F存在隐晦的继承关系</h3>
+
+<p>这也是上例中将<code>RobotCleaner robot</code>声明为<code>protected</code>的原因。这种隐晦的继承关系，让刚刚入门使用Google Test的人都大吃一惊。</p>
+
+<p>当然，如果你了解过Google Test的实现技术(<code>TEST_F</code>展开后将生成<code>Fixture</code>的一个子类，并自动地注册到框架中)，或者已经习惯了他的的设计，这自然不是问题。</p>
+
+<h3>
+<a id="test-test_f的设计容易让人误解误用" class="anchor" href="#test-test_f%E7%9A%84%E8%AE%BE%E8%AE%A1%E5%AE%B9%E6%98%93%E8%AE%A9%E4%BA%BA%E8%AF%AF%E8%A7%A3%E8%AF%AF%E7%94%A8" aria-hidden="true"><span class="octicon octicon-link"></span></a>TEST， TEST_F的设计容易让人误解、误用</h3>
+
+<p><code>TEST_F</code>的第一个参数是<code>Fixture</code>的名字。如下例如果被误用为<code>TEST</code>，最理想的情况下，则发生编译时错误。如本例所示，编译器将提示<code>robot</code>是一个未定义的变量。最坏的情况下是，错误发生在运行时，可能存在没有调用预期的<code>SetUp/TearDown</code>的风险。</p>
+
+<div class="highlight highlight-cpp"><pre><span class="pl-k">struct</span> <span class="pl-en">RobotCleanerTest</span> : testing::Test
+{
+<span class="pl-k">protected:</span>
+    RobotCleaner robot;
+};
+
+<span class="pl-en">TEST_F</span>(RobotCleanerTest, at_the_beginning_the_robot_should_be_in_at_the_initial_position)
+{
+    <span class="pl-c1">ASSERT_EQ</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, NORTH), robot.<span class="pl-c1">getPosition</span>());
+}</pre></div>
+
+<h3>
+<a id="重写setupteardown时缺乏override的保护" class="anchor" href="#%E9%87%8D%E5%86%99setupteardown%E6%97%B6%E7%BC%BA%E4%B9%8Foverride%E7%9A%84%E4%BF%9D%E6%8A%A4" aria-hidden="true"><span class="octicon octicon-link"></span></a>重写SetUp/TearDown时，缺乏Override的保护</h3>
+
+<p>Google Test通过在子类中改写<code>Setup/TearDown</code>来定制<code>Fixture</code>的功能，但程序员往往易于混淆<code>setUp, Setup, SetUp, set_up</code>，尤其在C++98中，由于缺失<code>override</code>的编译时保护，易于让程序员写出违背原意的逻辑代码，这样的错误很可能是运行时错误。</p>
+
+<div class="highlight highlight-cpp"><pre><span class="pl-k">struct</span> <span class="pl-en">RobotCleanerTest</span> : testing::Test
+{
+    <span class="pl-k">virtual</span> <span class="pl-k">void</span> <span class="pl-en">Setup</span>()   <span class="pl-c">// 本应该为SetUp</span>
+    {
+        robot.<span class="pl-c1">reset</span>();
+    }
+
+<span class="pl-k">protected:</span>
+    RobotCleaner robot;
+};</pre></div>
+
+<h3>
+<a id="不符合oo的习惯" class="anchor" href="#%E4%B8%8D%E7%AC%A6%E5%90%88oo%E7%9A%84%E4%B9%A0%E6%83%AF" aria-hidden="true"><span class="octicon octicon-link"></span></a>不符合OO的习惯</h3>
+
+<p>每个<code>TEST_F/TEST</code>的实现，感觉是一个个游离的函数，是一个典型的过程式设计，通过重复地使用<code>RobotCleanerTest</code>而使它们联系在一起，这太过于牵强。</p>
+
+<p>此外，需要提取函数时，要么将函数提取到父类的<code>Fixture</code>中，要么提取到匿名的<code>namespace</code>中，物理上隔离非常远，尤其用例数目很多的时候，问题更突出。无论怎么样，Google Test缺乏严格意义上的OO设计。</p>
+
+<div class="highlight highlight-cpp"><pre><span class="pl-k">struct</span> <span class="pl-en">RobotCleanerTest</span> : testing::Test
+{
+
+<span class="pl-k">protected:</span>
+    RobotCleaner robot;
+};
+
+<span class="pl-en">TEST_F</span>(RobotCleanerTest, at_the_beginning_the_robot_should_be_in_at_the_initial_position)
+{
+    <span class="pl-c1">ASSERT_EQ</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, NORTH), robot.<span class="pl-c1">getPosition</span>());
+}
+
+<span class="pl-en">TEST_F</span>(RobotCleanerTest, should_be_face_west_after_turn_left_1_times)
+{
+    robot.<span class="pl-c1">turnLeft</span>();
+    <span class="pl-c1">ASSERT_EQ</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, WEST), robot.<span class="pl-c1">getPosition</span>());
+}
+
+<span class="pl-en">TEST_F</span>(RobotCleanerTest, should_be_face_south_after_turn_left_2_times)
+{
+    robot.<span class="pl-c1">turnLeft</span>();
+    robot.<span class="pl-c1">turnLeft</span>();
+    <span class="pl-c1">ASSERT_EQ</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, SOUTH), robot.<span class="pl-c1">getPosition</span>());
+}
+
+<span class="pl-en">TEST_F</span>(RobotCleanerTest, should_be_face_east_after_turn_left_3_times)
+{
+    robot.<span class="pl-c1">turnLeft</span>();
+    robot.<span class="pl-c1">turnLeft</span>();
+    robot.<span class="pl-c1">turnLeft</span>();
+    <span class="pl-c1">ASSERT_EQ</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, EAST), robot.<span class="pl-c1">getPosition</span>());
+}
+
+<span class="pl-en">TEST_F</span>(RobotCleanerTest, should_be_face_north_after_turn_left_4_times)
+{
+    robot.<span class="pl-c1">turnLeft</span>();
+    robot.<span class="pl-c1">turnLeft</span>();
+    robot.<span class="pl-c1">turnLeft</span>();
+    robot.<span class="pl-c1">turnLeft</span>();
+    <span class="pl-c1">ASSERT_EQ</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, NORTH), robot.<span class="pl-c1">getPosition</span>());
+}</pre></div>
+
+<h3>
+<a id="断言违背直觉" class="anchor" href="#%E6%96%AD%E8%A8%80%E8%BF%9D%E8%83%8C%E7%9B%B4%E8%A7%89" aria-hidden="true"><span class="octicon octicon-link"></span></a>断言违背直觉</h3>
+
+<p>把期望值放在前面，而把实际值放在后面，严重违反了英语的阅读习惯。犹如我讨厌诸如<code>if (NULL != ptr)</code>的反人类的代码一样。</p>
+
+<div class="highlight highlight-cpp"><pre><span class="pl-en">ASSERT_EQ</span>(Position(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, WEST), robot.getPosition());</pre></div>
+
+<h3>
+<a id="global级fixture不能自动发现" class="anchor" href="#global%E7%BA%A7fixture%E4%B8%8D%E8%83%BD%E8%87%AA%E5%8A%A8%E5%8F%91%E7%8E%B0" aria-hidden="true"><span class="octicon octicon-link"></span></a>Global级Fixture不能自动发现</h3>
+
+<p><code>GlobalEnvironment</code>需要手动注册到框架，才能被框架发现，而不像<code>TEST_F, TEST, TEST_G</code>无需显式地注册，便能被框架自动发现，设计缺乏统一性，一致性。</p>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>gtest/gtest.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">struct</span> <span class="pl-en">GlobalEnvironment</span> : testing::Environment
+{
+    <span class="pl-k">virtual</span> <span class="pl-k">void</span> <span class="pl-en">SetUp</span>()
+    { ... }
+
+    <span class="pl-k">virtual</span> <span class="pl-k">void</span> <span class="pl-en">TearDown</span>()
+    { ... }
+};
+
+<span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">int</span> argc, <span class="pl-k">char</span>** argv)
+{
+    <span class="pl-c1">testing::AddGlobalTestEnvironment</span>(<span class="pl-k">new</span> GlobalEnvironment);
+    <span class="pl-c1">testing::InitGoogleTest</span>(&amp;argc, argv);
+    <span class="pl-k">return</span> <span class="pl-c1">RUN_ALL_TESTS</span>();
+}</pre></div>
+
+<h3>
+<a id="断言缺乏可扩展性" class="anchor" href="#%E6%96%AD%E8%A8%80%E7%BC%BA%E4%B9%8F%E5%8F%AF%E6%89%A9%E5%B1%95%E6%80%A7" aria-hidden="true"><span class="octicon octicon-link"></span></a>断言缺乏可扩展性</h3>
+
+<p>使用Google Test的断言时，你可以在<code>ASSERT_EQ, ASSERT_NE, ASSERT_TRUE, ASSERT_FALSE</code>之中做选择。当然你可以认为这无可厚非，但这样的设计最大的问题在于：只能使用框架本身所提供的几个为数不多的断言原语，缺乏可扩展性，或者扩展起来非常困难。</p>
+
+<p>例如你想增加个一个<code>ASSERT_NIL</code>的断言，扩展起来变得非常不自然。</p>
+
+<h3>
+<a id="没有理由就是不喜欢" class="anchor" href="#%E6%B2%A1%E6%9C%89%E7%90%86%E7%94%B1%E5%B0%B1%E6%98%AF%E4%B8%8D%E5%96%9C%E6%AC%A2" aria-hidden="true"><span class="octicon octicon-link"></span></a>没有理由，就是不喜欢</h3>
+
+<p>在C++社区中，有很多人在使用Google Test。这归功于它在平台性移植、部署与安装等方面非常成功，尤其符合微软平台上的C++程序员的胃口；其次，Google Test的<code>TEST, TEST_F</code>实现的自动发现机制，相对于CppUnit等框架显得更技高一筹。</p>
+
+<p>但对于高级别的、骨灰级的C++程序员，是无法容忍上述的Google Test的致命性缺陷的，例如严格的标识符命名规则，这种强制的约束几乎等于杀了他。</p>
+
+<h2>
+<a id="magellan开启新的征程" class="anchor" href="#magellan%E5%BC%80%E5%90%AF%E6%96%B0%E7%9A%84%E5%BE%81%E7%A8%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>Magellan：开启新的征程</h2>
+
+<h3>
+<a id="灵感" class="anchor" href="#%E7%81%B5%E6%84%9F" aria-hidden="true"><span class="octicon octicon-link"></span></a>灵感</h3>
+
+<p>Magellan是一个简单的、可扩展的、使用C++11实现的xUnit测试框架。Magellan设计灵感来自于Java社区著名的测试框架JUnit。</p>
+
+<h3>
+<a id="安装" class="anchor" href="#%E5%AE%89%E8%A3%85" aria-hidden="true"><span class="octicon octicon-link"></span></a>安装</h3>
+
+<h4>
+<a id="gitlab" class="anchor" href="#gitlab" aria-hidden="true"><span class="octicon octicon-link"></span></a>Gitlab</h4>
+
+<p>地址：<a href="https://gitlab.com/horance/magellan">https://gitlab.com/horance/magellan</a>
+作者：刘光聪
+Email：<a href="horance@outlook.com">horance@outlook.com</a></p>
+
+<h4>
+<a id="编译环境" class="anchor" href="#%E7%BC%96%E8%AF%91%E7%8E%AF%E5%A2%83" aria-hidden="true"><span class="octicon octicon-link"></span></a>编译环境</h4>
+
+<p>支持的平台:</p>
+
+<ul>
+<li>[MAC OS X] supported</li>
+<li>[Linux] supported</li>
+<li>[Windows] not supported</li>
+</ul>
+
+<p>支持的编译器:</p>
+
+<ul>
+<li>[CLANG] 3.4 or later.</li>
+<li>[GCC] 4.8 or later.</li>
+<li>[MSVC] not supported.</li>
+</ul>
+
+<h4>
+<a id="安装cmake" class="anchor" href="#%E5%AE%89%E8%A3%85cmake" aria-hidden="true"><span class="octicon octicon-link"></span></a>安装CMake</h4>
+
+<p>CMake的下载地址：<a href="http://www.cmake.org">http://www.cmake.org</a>。</p>
+
+<h4>
+<a id="安装l0-infra" class="anchor" href="#%E5%AE%89%E8%A3%85l0-infra" aria-hidden="true"><span class="octicon octicon-link"></span></a>安装l0-infra</h4>
+
+<p>Magellan依赖于l0-infra，所以必须先安装l0-infra。</p>
+
+<div class="highlight highlight-bash"><pre>$ git clone https://gitlab.com/horance/l0-infra.git
+$ <span class="pl-c1">cd</span> l0-infra
+$ mkdir build
+$ <span class="pl-c1">cd</span> build
+$ cmake ..
+$ make
+$ sudo make install</pre></div>
+
+<h4>
+<a id="安装magellan" class="anchor" href="#%E5%AE%89%E8%A3%85magellan" aria-hidden="true"><span class="octicon octicon-link"></span></a>安装Magellan</h4>
+
+<div class="highlight highlight-bash"><pre>$ git clone https://gitlab.com/horance/magellan.git
+$ <span class="pl-c1">cd</span> magellan
+$ mkdir build
+$ <span class="pl-c1">cd</span> build
+$ cmake ..
+$ make
+$ sudo make install</pre></div>
+
+<h3>
+<a id="破冰之旅" class="anchor" href="#%E7%A0%B4%E5%86%B0%E4%B9%8B%E6%97%85" aria-hidden="true"><span class="octicon octicon-link"></span></a>破冰之旅</h3>
+
+<h5>
+<a id="物理目录" class="anchor" href="#%E7%89%A9%E7%90%86%E7%9B%AE%E5%BD%95" aria-hidden="true"><span class="octicon octicon-link"></span></a>物理目录</h5>
+
+<div class="highlight highlight-bash"><pre>quantity
+├── include
+│   └── quantity
+├── src
+│   └── quantity
+└── <span class="pl-c1">test</span>
+│   ├── main.cpp
+└── CMakeLists.txt</pre></div>
+
+<h5>
+<a id="main函数" class="anchor" href="#main%E5%87%BD%E6%95%B0" aria-hidden="true"><span class="octicon octicon-link"></span></a>main函数</h5>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>magellan/magellan.hpp<span class="pl-pds">"</span></span>
+
+
+<span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">int</span> argc, <span class="pl-k">char</span>** argv)
+{
+    <span class="pl-k">return</span> <span class="pl-c1">magellan::run_all_tests</span>(argc, argv);
+}</pre></div>
+
+<h5>
+<a id="cmakelist脚本" class="anchor" href="#cmakelist%E8%84%9A%E6%9C%AC" aria-hidden="true"><span class="octicon octicon-link"></span></a>CMakeList脚本</h5>
+
+<div class="highlight highlight-cmake"><pre><span class="pl-c1">project</span>(quantity)
+
+<span class="pl-c1">cmake_minimum_required</span>(<span class="pl-k">VERSION</span> 2.8)
+
+<span class="pl-c1">set</span>(CMAKE_CXX_FLAGS <span class="pl-s">"<span class="pl-v">${CMAKE_CXX_FLAGS}</span> -std=c++0x"</span>)
+
+<span class="pl-c1">include_directories</span>(<span class="pl-v">${CMAKE_CURRENT_SOURCE_DIR}</span>/include)
+
+<span class="pl-c1">file</span>(<span class="pl-k">GLOB_RECURSE</span> all_files
+src/*.cpp
+src/*.cc
+src/*.c
+test/*.cpp
+test/*.cc
+test/*.c)
+
+<span class="pl-c1">add_executable</span>(quantity-test <span class="pl-v">${all_files}</span>)
+
+<span class="pl-c1">target_link_libraries</span>(quantity-test magellan l0-infra)</pre></div>
+
+<h5>
+<a id="构建" class="anchor" href="#%E6%9E%84%E5%BB%BA" aria-hidden="true"><span class="octicon octicon-link"></span></a>构建</h5>
+
+<div class="highlight highlight-bash"><pre>$ mkdir build
+$ <span class="pl-c1">cd</span> build
+$ cmake ..
+$ make</pre></div>
+
+<h5>
+<a id="运行" class="anchor" href="#%E8%BF%90%E8%A1%8C" aria-hidden="true"><span class="octicon octicon-link"></span></a>运行</h5>
+
+<div class="highlight highlight-bash"><pre>$ ./quantity-test
+
+[==========] Running 0 <span class="pl-c1">test</span> cases.
+[----------] 0 tests from All Tests
+[----------] 0 tests from All Tests
+
+[==========] 0 <span class="pl-c1">test</span> cases ran.
+[  TOTAL   ] PASS: 0  FAILURE: 0  ERROR: 0  TIME: 0 us</pre></div>
+
+<h3>
+<a id="体验magellan" class="anchor" href="#%E4%BD%93%E9%AA%8Cmagellan" aria-hidden="true"><span class="octicon octicon-link"></span></a>体验Magellan</h3>
+
+<h4>
+<a id="第一个用例" class="anchor" href="#%E7%AC%AC%E4%B8%80%E4%B8%AA%E7%94%A8%E4%BE%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>第一个用例</h4>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>quantity/Length.h<span class="pl-pds">"</span></span>
+
+USING_HAMCREST_NS
+
+<span class="pl-en">FIXTURE</span>(LengthTest)
+{
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>1 FEET should equal to 12 INCH<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">Length</span>(<span class="pl-c1">1</span>, FEET), <span class="pl-c1">eq</span>(<span class="pl-c1">Length</span>(<span class="pl-c1">12</span>, INCH)));
+    }
+};</pre></div>
+
+<p>使用 Magellan,只需要包含 <code>magellan.hpp</code> 一个头文件即可。Magellan 使用 Hamcrest 的断言机制,
+使得断言更加统一、自然,且具有良好的扩展性;使用 <code>USING_HAMCREST_NS</code>,从而可以使用 <code>eq</code> 代
+替 <code>hamcrest::eq</code>,简短明确;除非出现名字冲突,否则推荐使用简写的 <code>eq</code>。</p>
+
+<h4>
+<a id="length实现" class="anchor" href="#length%E5%AE%9E%E7%8E%B0" aria-hidden="true"><span class="octicon octicon-link"></span></a>Length实现</h4>
+
+<div class="highlight highlight-cpp"><pre><span class="pl-c">// quantity/Length.h</span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>quantity/Amount.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">enum</span> LengthUnit
+{
+    INCH = <span class="pl-c1">1</span>,
+    FEET = <span class="pl-c1">12</span> * INCH,
+};
+
+<span class="pl-k">struct</span> <span class="pl-en">Length</span>
+{
+    <span class="pl-en">Length</span>(Amount amount, LengthUnit unit);
+
+    <span class="pl-k">bool</span> <span class="pl-k">operator</span>==(<span class="pl-k">const</span> Length&amp; rhs) <span class="pl-k">const</span>;
+    <span class="pl-k">bool</span> <span class="pl-k">operator</span>!=(<span class="pl-k">const</span> Length&amp; rhs) <span class="pl-k">const</span>;
+
+<span class="pl-k">private:</span>
+    <span class="pl-k">const</span> Amount amountInBaseUnit;
+};</pre></div>
+
+<div class="highlight highlight-cpp"><pre><span class="pl-c">// quantity/Length.cpp</span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>quantity/Length.h<span class="pl-pds">"</span></span>
+
+<span class="pl-en">Length::Length</span>(Amount amount, LengthUnit unit)
+  : amountInBaseUnit(unit * amount)
+{
+}
+
+<span class="pl-k">bool</span> Length::<span class="pl-k">operator</span>==(<span class="pl-k">const</span> Length&amp; rhs) <span class="pl-k">const</span>
+{
+    <span class="pl-k">return</span> amountInBaseUnit == rhs.<span class="pl-smi">amountInBaseUnit</span>;
+}
+
+<span class="pl-k">bool</span> Length::<span class="pl-k">operator</span>!=(<span class="pl-k">const</span> Length&amp; rhs) <span class="pl-k">const</span>
+{
+    <span class="pl-k">return</span> !(*<span class="pl-v">this</span> == rhs);
+}</pre></div>
+
+<h5>
+<a id="构建-1" class="anchor" href="#%E6%9E%84%E5%BB%BA-1" aria-hidden="true"><span class="octicon octicon-link"></span></a>构建</h5>
+
+<div class="highlight highlight-bash"><pre>$ mkdir build
+$ <span class="pl-c1">cd</span> build
+$ cmake ..
+$ make</pre></div>
+
+<h5>
+<a id="运行-1" class="anchor" href="#%E8%BF%90%E8%A1%8C-1" aria-hidden="true"><span class="octicon octicon-link"></span></a>运行</h5>
+
+<div class="highlight highlight-bash"><pre>$ ./quantity-test
+
+[==========] Running 1 <span class="pl-c1">test</span> cases.
+[----------] 1 tests from All Tests
+[----------] 1 tests from LengthTest
+[ RUN      ] LengthTest::1 FEET should equal to 12 INCH
+[       OK ] LengthTest::1 FEET should equal to 12 INCH(13 us)
+[----------] 1 tests from LengthTest
+
+[----------] 1 tests from All Tests
+
+[==========] 1 <span class="pl-c1">test</span> cases ran.
+[  TOTAL   ] PASS: 1  FAILURE: 0  ERROR: 0  TIME: 13 us</pre></div>
+
+<h3>
+<a id="fixture" class="anchor" href="#fixture" aria-hidden="true"><span class="octicon octicon-link"></span></a>Fixture</h3>
+
+<p>FIXTURE的参数可以是任意的C++标识符。一般而言，将其命名为CUT(Class Under Test)的名字即可。根据作用域的大小，Fixture可分为三个类别：独立的Fixture，共享的Fixture，全局的Fixture。</p>
+
+<h4>
+<a id="支持bdd风格" class="anchor" href="#%E6%94%AF%E6%8C%81bdd%E9%A3%8E%E6%A0%BC" aria-hidden="true"><span class="octicon octicon-link"></span></a>支持BDD风格</h4>
+
+<table>
+<thead>
+<tr>
+<th>xUnit</th>
+<th>BDD</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FIXTURE</td>
+<td>CONTEXT</td>
+</tr>
+<tr>
+<td>SETUP</td>
+<td>BEFORE</td>
+</tr>
+<tr>
+<td>TEARDOWN</td>
+<td>AFTER</td>
+</tr>
+<tr>
+<td>ASSERT_THAT</td>
+<td>EXPECT</td>
+</tr>
+</tbody>
+</table>
+
+<h4>
+<a id="独立的fixture" class="anchor" href="#%E7%8B%AC%E7%AB%8B%E7%9A%84fixture" aria-hidden="true"><span class="octicon octicon-link"></span></a>独立的Fixture</h4>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+
+<span class="pl-en">FIXTURE</span>(LengthTest)
+{
+    Length length;
+
+    <span class="pl-c1">SETUP</span>()
+    {}
+
+    <span class="pl-c1">TEARDOWN</span>()
+    {}
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>length test1<span class="pl-pds">"</span></span>)
+    {}
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>length test2<span class="pl-pds">"</span></span>)
+    {}
+};</pre></div>
+
+<p>执行序列为：
+1. <code>Length</code> 构造函数
+2. <code>SETUP</code>
+3. <code>TEST("length test1")</code>
+4. <code>TEARDOWN</code>
+5. <code>Length</code> 析构函数
+6. <code>Length</code> 构造函数
+7. <code>SETUP</code>
+8. <code>TEST("length test2")</code>
+9. <code>TEARDOWN</code>
+10. <code>Length</code> 析构函数</p>
+
+<h4>
+<a id="共享的fixture" class="anchor" href="#%E5%85%B1%E4%BA%AB%E7%9A%84fixture" aria-hidden="true"><span class="octicon octicon-link"></span></a>共享的Fixture</h4>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+
+<span class="pl-en">FIXTURE</span>(LengthTest)
+{
+    Length length;
+
+    <span class="pl-c1">BEFORE_CLASS</span>()
+    {}
+
+    <span class="pl-c1">AFTER_CLASS</span>()
+    {}
+
+    <span class="pl-c1">BEFORE</span>()
+    {}
+
+    <span class="pl-c1">AFTER</span>()
+    {}
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>length test1<span class="pl-pds">"</span></span>)
+    {}
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>length test2<span class="pl-pds">"</span></span>)
+    {}
+};</pre></div>
+
+<p>执行序列为：
+1. <code>BEFORE_CLASS</code>
+2. <code>Length</code> 构造函数
+3. <code>BEFORE</code>
+4. <code>TEST("length test1")</code>
+5. <code>AFTER</code>
+6. <code>Length</code> 析构函数
+7. <code>Length</code> 构造函数
+8. <code>BEFORE</code>
+9. <code>TEST("length test2")</code>
+10. <code>AFTER</code>
+11. <code>Length</code> 析构函数
+12. <code>AFTER_CLASS</code></p>
+
+<h4>
+<a id="全局的fixture" class="anchor" href="#%E5%85%A8%E5%B1%80%E7%9A%84fixture" aria-hidden="true"><span class="octicon octicon-link"></span></a>全局的Fixture</h4>
+
+<p>有时候需要在所有用例启动之前完成一次性的全局性的配置，在所有用例运行完成之后完成一次性的清理工作。Magellan则使用<code>BEFORE_ALL</code>和<code>AFTER_ALL</code>两个关键字来支持这样的特性。</p>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+
+<span class="pl-en">BEFORE_ALL</span>(<span class="pl-s"><span class="pl-pds">"</span>before all 1<span class="pl-pds">"</span></span>)
+{
+}
+
+<span class="pl-en">BEFORE_ALL</span>(<span class="pl-s"><span class="pl-pds">"</span>before all 2<span class="pl-pds">"</span></span>)
+{
+}
+
+<span class="pl-en">AFTER_ALL</span>(<span class="pl-s"><span class="pl-pds">"</span>after all 1<span class="pl-pds">"</span></span>)
+{
+}
+
+<span class="pl-en">AFTER_ALL</span>(<span class="pl-s"><span class="pl-pds">"</span>after all 2<span class="pl-pds">"</span></span>)
+{
+}</pre></div>
+
+<p><code>BEFORE_ALL</code>和<code>AFTER_ALL</code>向系统注册<code>Hook</code>即可，Magellan便能自动地发现它们，并执行它们。犹如C++不能保证各源文件中全局变量初始化的顺序一样，避免在源文件之间的<code>BEFORE_ALL</code>和<code>AFTER_ALL</code>设计不合理的依赖关系。</p>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+
+<span class="pl-en">FIXTURE</span>(LengthTest)
+{
+    Length length;
+
+    <span class="pl-c1">BEFORE_CLASS</span>()
+    {}
+
+    <span class="pl-c1">AFTER_CLASS</span>()
+    {}
+
+    <span class="pl-c1">BEFORE</span>()
+    {}
+
+    <span class="pl-c1">AFTER</span>()
+    {}
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>length test1<span class="pl-pds">"</span></span>)
+    {}
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>length test2<span class="pl-pds">"</span></span>)
+    {}
+};</pre></div>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+
+<span class="pl-en">FIXTURE</span>(VolumeTest)
+{
+    Volume volume;
+
+    <span class="pl-c1">BEFORE_CLASS</span>()
+    {}
+
+    <span class="pl-c1">AFTER_CLASS</span>()
+    {}
+
+    <span class="pl-c1">BEFORE</span>()
+    {}
+
+    <span class="pl-c1">AFTER</span>()
+    {}
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>volume test1<span class="pl-pds">"</span></span>)
+    {}
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>volume test1<span class="pl-pds">"</span></span>)
+    {}
+};</pre></div>
+
+<p>Magellan可能的一个执行序列为：</p>
+
+<ol>
+<li><code>BEFORE_ALL("before all 1")</code></li>
+<li><code>BEFORE_ALL("before all 2")</code></li>
+<li><code>LengthTest::BEFORE_CLASS</code></li>
+<li>
+<code>Length</code>构造函数</li>
+<li><code>LengthTest::BEFORE</code></li>
+<li><code>TEST("length test1")</code></li>
+<li><code>LengthTest::AFTER</code></li>
+<li>
+<code>Length</code>析构函数</li>
+<li>
+<code>Length</code>构造函数</li>
+<li><code>LengthTest::BEFORE</code></li>
+<li><code>TEST("length test2")</code></li>
+<li><code>LengthTest::AFTER</code></li>
+<li>
+<code>Length</code>析构函数</li>
+<li><code>LengthTest::AFTER_CLASS</code></li>
+<li><code>VolumeTest::BEFORE_CLASS</code></li>
+<li>
+<code>Volume</code>构造函数</li>
+<li><code>LengthTest::BEFORE</code></li>
+<li><code>TEST("volume test1")</code></li>
+<li><code>LengthTest::AFTER</code></li>
+<li>
+<code>Volume</code>析构函数</li>
+<li>
+<code>Volume</code>构造函数</li>
+<li><code>LengthTest::BEFORE</code></li>
+<li><code>TEST("volume test2")</code></li>
+<li><code>LengthTest::AFTER</code></li>
+<li>
+<code>Volume</code>析构函数</li>
+<li><code>VolumeTest::AFTER_CLASS</code></li>
+<li><code>AFTER_ALL("after all 2")</code></li>
+<li><code>AFTER_ALL("after all 1")</code></li>
+</ol>
+
+<h3>
+<a id="用例设计" class="anchor" href="#%E7%94%A8%E4%BE%8B%E8%AE%BE%E8%AE%A1" aria-hidden="true"><span class="octicon octicon-link"></span></a>用例设计</h3>
+
+<h4>
+<a id="自动标识" class="anchor" href="#%E8%87%AA%E5%8A%A8%E6%A0%87%E8%AF%86" aria-hidden="true"><span class="octicon octicon-link"></span></a>自动标识</h4>
+
+<p>Magellan能够自动地实现测试用例的标识功能，用户可以使用字符串来解释说明测试用例的意图，使得用户在描述用例时更加自然和方便。</p>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>quantity/length/Length.h<span class="pl-pds">"</span></span>
+
+USING_HAMCREST_NS
+
+<span class="pl-en">FIXTURE</span>(LengthTest)
+{
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>1 FEET should equal to 12 INCH<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">Length</span>(<span class="pl-c1">1</span>, FEET), <span class="pl-c1">eq</span>(<span class="pl-c1">Length</span>(<span class="pl-c1">12</span>, INCH)));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>1 YARD should equal to 3 FEET<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">Length</span>(<span class="pl-c1">1</span>, YARD), <span class="pl-c1">eq</span>(<span class="pl-c1">Length</span>(<span class="pl-c1">3</span>, FEET)));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>1 MILE should equal to 1760 YARD<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">Length</span>(<span class="pl-c1">1</span>, MILE), <span class="pl-c1">eq</span>(<span class="pl-c1">Length</span>(<span class="pl-c1">1760</span>, YARD)));
+    }
+};</pre></div>
+
+<h4>
+<a id="面向对象" class="anchor" href="#%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1" aria-hidden="true"><span class="octicon octicon-link"></span></a>面向对象</h4>
+
+<p>Magellan实现xUnit时非常巧妙，使得用户设计用例时更加面向对象。<code>RobotCleaner robot</code>在每个用例执行时都将获取一个独立的、全新的实例。</p>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>magellan/magellan.hpp<span class="pl-pds">"</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>robot-cleaner/RobotCleaner.h<span class="pl-pds">"</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>robot-cleaner/Position.h<span class="pl-pds">"</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>robot-cleaner/Instructions.h<span class="pl-pds">"</span></span>
+
+USING_HAMCREST_NS
+
+<span class="pl-en">FIXTURE</span>(RobotCleanerTest)
+{
+    RobotCleaner robot;
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>at the beginning, the robot should be in at the initial position<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(robot.<span class="pl-c1">getPosition</span>(), <span class="pl-c1">is</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, NORTH)));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>left instruction: 1-times<span class="pl-pds">"</span></span>)
+    {
+        robot.<span class="pl-c1">exec</span>(<span class="pl-c1">left</span>());
+        <span class="pl-c1">ASSERT_THAT</span>(robot.<span class="pl-c1">getPosition</span>(), <span class="pl-c1">is</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, WEST)));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>left instruction: 2-times<span class="pl-pds">"</span></span>)
+    {
+        robot.<span class="pl-c1">exec</span>(<span class="pl-c1">left</span>());
+        robot.<span class="pl-c1">exec</span>(<span class="pl-c1">left</span>());
+        <span class="pl-c1">ASSERT_THAT</span>(robot.<span class="pl-c1">getPosition</span>(), <span class="pl-c1">is</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, SOUTH)));
+    }
+};</pre></div>
+
+<h4>
+<a id="函数提取" class="anchor" href="#%E5%87%BD%E6%95%B0%E6%8F%90%E5%8F%96" aria-hidden="true"><span class="octicon octicon-link"></span></a>函数提取</h4>
+
+<p>提取的相关子函数，可以直接放在<code>Fixture</code>的内部，使得用例与其的距离最近，更加体现类作用域的概念。</p>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>magellan/magellan.hpp<span class="pl-pds">"</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>robot-cleaner/RobotCleaner.h<span class="pl-pds">"</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>robot-cleaner/Position.h<span class="pl-pds">"</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>robot-cleaner/Instructions.h<span class="pl-pds">"</span></span>
+
+USING_HAMCREST_NS
+
+<span class="pl-en">FIXTURE</span>(RobotCleanerTest)
+{
+    RobotCleaner robot;
+
+    <span class="pl-k">void</span> <span class="pl-smi">WHEN_I_send_instruction</span>(Instruction* instruction)
+    {
+        robot.<span class="pl-c1">exec</span>(instruction);
+    }
+
+    <span class="pl-k">void</span> <span class="pl-smi">AND_I_send_instruction</span>(Instruction* instruction)
+    {
+        <span class="pl-c1">WHEN_I_send_instruction</span>(instruction);
+    }
+
+    <span class="pl-k">void</span> <span class="pl-smi">THEN_the_robot_cleaner_should_be_in</span>(<span class="pl-k">const</span> Position&amp; position)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(robot.<span class="pl-c1">getPosition</span>(), <span class="pl-c1">is</span>(position));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>at the beginning<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">THEN_the_robot_cleaner_should_be_in</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, NORTH));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>left instruction: 1-times<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">WHEN_I_send_instruction</span>(<span class="pl-c1">left</span>());
+        <span class="pl-c1">THEN_the_robot_cleaner_should_be_in</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, WEST));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>left instruction: 2-times<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">WHEN_I_send_instruction</span>(<span class="pl-c1">repeat</span>(<span class="pl-c1">left</span>(), <span class="pl-c1">2</span>));
+        <span class="pl-c1">THEN_the_robot_cleaner_should_be_in</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, SOUTH));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>left instruction: 3-times<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">WHEN_I_send_instruction</span>(<span class="pl-c1">repeat</span>(<span class="pl-c1">left</span>(), <span class="pl-c1">3</span>));
+        <span class="pl-c1">THEN_the_robot_cleaner_should_be_in</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, EAST));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>left instruction: 4-times<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">WHEN_I_send_instruction</span>(<span class="pl-c1">repeat</span>(<span class="pl-c1">left</span>(), <span class="pl-c1">4</span>));
+        <span class="pl-c1">THEN_the_robot_cleaner_should_be_in</span>(<span class="pl-c1">Position</span>(<span class="pl-c1">0</span>, <span class="pl-c1">0</span>, NORTH));
+    }
+};</pre></div>
+
+<h3>
+<a id="断言" class="anchor" href="#%E6%96%AD%E8%A8%80" aria-hidden="true"><span class="octicon octicon-link"></span></a>断言</h3>
+
+<h4>
+<a id="assert_that" class="anchor" href="#assert_that" aria-hidden="true"><span class="octicon octicon-link"></span></a>ASSERT_THAT</h4>
+
+<p>Magellan只支持一种断言原语：<code>ASSERT_THAT</code>, 从而避免用户在选择<code>ASSERT_EQ/ASSERT_NE, ASSERT_TRUE/ASSERT_FALSE</code>时的困扰，使其断言更加具有统一性，一致性。</p>
+
+<p>此外，<code>ASSERT_THAT</code>使得断言更加具有表达力，它将实际值放在左边，期望值放在右边，更加符合英语习惯。</p>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+
+<span class="pl-en">FIXTURE</span>(CloseToTest)
+{
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>close to double<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">1.0</span>, <span class="pl-c1">close_to</span>(<span class="pl-c1">1.0</span>, <span class="pl-c1">0.5</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">0.5</span>, <span class="pl-c1">close_to</span>(<span class="pl-c1">1.0</span>, <span class="pl-c1">0.5</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">1.5</span>, <span class="pl-c1">close_to</span>(<span class="pl-c1">1.0</span>, <span class="pl-c1">0.5</span>));
+    }
+};</pre></div>
+
+<h4>
+<a id="hamcrest" class="anchor" href="#hamcrest" aria-hidden="true"><span class="octicon octicon-link"></span></a>Hamcrest</h4>
+
+<p>Hamcrest是Java社区一个轻量级的，可扩展的Matcher框架，曾被Kent Beck引入到JUnit框架中，用于增强断言的机制。Magellan引入了Hamcrest的设计，实现了一个C++移植版本的Hamcrest，使得Magellang的断言更加具有扩展性和可读性。</p>
+
+<h5>
+<a id="anything" class="anchor" href="#anything" aria-hidden="true"><span class="octicon octicon-link"></span></a>anything</h5>
+
+<table>
+<thead>
+<tr>
+<th>匹配器</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>anything</td>
+<td>总是匹配</td>
+</tr>
+<tr>
+<td>_</td>
+<td>anything语法糖</td>
+</tr>
+</tbody>
+</table>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+
+USING_HAMCREST_NS
+
+<span class="pl-en">FIXTURE</span>(AnythingTest)
+{
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>should always be matched<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">1</span>, anything&lt;<span class="pl-k">int</span>&gt;());
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">1u</span>, anything&lt;<span class="pl-k">unsigned</span> <span class="pl-k">int</span>&gt;());
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">1.0</span>, anything&lt;<span class="pl-k">double</span>&gt;());
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">1</span>.<span class="pl-c1">0f</span>, anything&lt;<span class="pl-k">float</span>&gt;());
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">false</span>, anything&lt;<span class="pl-k">bool</span>&gt;());
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">true</span>, anything&lt;<span class="pl-k">bool</span>&gt;());
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-v">nullptr</span>, anything&lt;std::<span class="pl-c1">nullptr_t</span>&gt;());
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>should support _ as syntactic sugar<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">1u</span>, <span class="pl-c1">_</span>(<span class="pl-k">int</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">1</span>.<span class="pl-c1">0f</span>, <span class="pl-c1">_</span>(<span class="pl-k">float</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">false</span>, <span class="pl-c1">_</span>(<span class="pl-k">int</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-v">nullptr</span>, <span class="pl-c1">_</span>(std::<span class="pl-c1">nullptr_t</span>));
+    }
+};</pre></div>
+
+<h5>
+<a id="比较器" class="anchor" href="#%E6%AF%94%E8%BE%83%E5%99%A8" aria-hidden="true"><span class="octicon octicon-link"></span></a>比较器</h5>
+
+<table>
+<thead>
+<tr>
+<th>匹配器</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>eq</td>
+<td>相等</td>
+</tr>
+<tr>
+<td>ne</td>
+<td>不相等</td>
+</tr>
+<tr>
+<td>lt</td>
+<td>小于</td>
+</tr>
+<tr>
+<td>gt</td>
+<td>大于</td>
+</tr>
+<tr>
+<td>le</td>
+<td>小于或等于</td>
+</tr>
+<tr>
+<td>ge</td>
+<td>大于或等于</td>
+</tr>
+</tbody>
+</table>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+
+USING_HAMCREST_NS
+
+<span class="pl-en">FIXTURE</span>(EqualToTest)
+{
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>should allow compare to integer<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(0xFF, <span class="pl-c1">eq</span>(0xFF));
+        <span class="pl-c1">ASSERT_THAT</span>(0xFF, <span class="pl-c1">is</span>(<span class="pl-c1">eq</span>(0xFF)));
+
+        <span class="pl-c1">ASSERT_THAT</span>(0xFF, <span class="pl-c1">is</span>(0xFF));
+        <span class="pl-c1">ASSERT_THAT</span>(0xFF == 0xFF, <span class="pl-c1">is</span>(<span class="pl-c1">true</span>));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>should allow compare to bool<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">true</span>, <span class="pl-c1">eq</span>(<span class="pl-c1">true</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">false</span>, <span class="pl-c1">eq</span>(<span class="pl-c1">false</span>));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>should allow compare to string<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>, <span class="pl-c1">eq</span>(<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>, <span class="pl-c1">eq</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>)));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>), <span class="pl-c1">eq</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>)));
+    }
+};
+
+<span class="pl-en">FIXTURE</span>(NotEqualToTest)
+{
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>should allow compare to integer<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(0xFF, <span class="pl-c1">ne</span>(0xEE));
+
+        <span class="pl-c1">ASSERT_THAT</span>(0xFF, <span class="pl-c1">is_not</span>(0xEE));
+        <span class="pl-c1">ASSERT_THAT</span>(0xFF, <span class="pl-c1">is_not</span>(<span class="pl-c1">eq</span>(0xEE)));
+        <span class="pl-c1">ASSERT_THAT</span>(0xFF != 0xEE, <span class="pl-c1">is</span>(<span class="pl-c1">true</span>));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>should allow compare to boolean<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">true</span>, <span class="pl-c1">ne</span>(<span class="pl-c1">false</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">false</span>, <span class="pl-c1">ne</span>(<span class="pl-c1">true</span>));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>should allow compare to string<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>, <span class="pl-c1">ne</span>(<span class="pl-s"><span class="pl-pds">"</span>world<span class="pl-pds">"</span></span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>, <span class="pl-c1">ne</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>world<span class="pl-pds">"</span></span>)));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>), <span class="pl-c1">ne</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>world<span class="pl-pds">"</span></span>)));
+    }
+};</pre></div>
+
+<h5>
+<a id="修饰器" class="anchor" href="#%E4%BF%AE%E9%A5%B0%E5%99%A8" aria-hidden="true"><span class="octicon octicon-link"></span></a>修饰器</h5>
+
+<table>
+<thead>
+<tr>
+<th>匹配器</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>is</td>
+<td>可读性装饰器</td>
+</tr>
+<tr>
+<td>is_not</td>
+<td>可读性装饰器</td>
+</tr>
+</tbody>
+</table>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+
+USING_HAMCREST_NS
+
+<span class="pl-en">FIXTURE</span>(IsNotTest)
+{
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>integer<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(0xFF, <span class="pl-c1">is_not</span>(0xEE));
+        <span class="pl-c1">ASSERT_THAT</span>(0xFF, <span class="pl-c1">is_not</span>(<span class="pl-c1">eq</span>(0xEE)));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>string<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>, <span class="pl-c1">is_not</span>(<span class="pl-s"><span class="pl-pds">"</span>world<span class="pl-pds">"</span></span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>, <span class="pl-c1">is_not</span>(<span class="pl-c1">eq</span>(<span class="pl-s"><span class="pl-pds">"</span>world<span class="pl-pds">"</span></span>)));
+
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>, <span class="pl-c1">is_not</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>world<span class="pl-pds">"</span></span>)));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span>), <span class="pl-c1">is_not</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>world<span class="pl-pds">"</span></span>)));
+    }
+};</pre></div>
+
+<h5>
+<a id="空指针" class="anchor" href="#%E7%A9%BA%E6%8C%87%E9%92%88" aria-hidden="true"><span class="octicon octicon-link"></span></a>空指针</h5>
+
+<table>
+<thead>
+<tr>
+<th>匹配器</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nil</td>
+<td>空指针</td>
+</tr>
+</tbody>
+</table>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+
+USING_HAMCREST_NS
+
+<span class="pl-en">FIXTURE</span>(NilTest)
+{
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>equal_to<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-v">nullptr</span>, <span class="pl-c1">eq</span>(<span class="pl-v">nullptr</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">0</span>, <span class="pl-c1">eq</span>(<span class="pl-c1">NULL</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">NULL</span>, <span class="pl-c1">eq</span>(<span class="pl-c1">NULL</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">NULL</span>, <span class="pl-c1">eq</span>(<span class="pl-c1">0</span>));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>is<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-v">nullptr</span>, <span class="pl-c1">is</span>(<span class="pl-v">nullptr</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-v">nullptr</span>, <span class="pl-c1">is</span>(<span class="pl-c1">eq</span>(<span class="pl-v">nullptr</span>)));
+
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">0</span>, <span class="pl-c1">is</span>(<span class="pl-c1">0</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">NULL</span>, <span class="pl-c1">is</span>(<span class="pl-c1">NULL</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">0</span>, <span class="pl-c1">is</span>(<span class="pl-c1">NULL</span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">NULL</span>, <span class="pl-c1">is</span>(<span class="pl-c1">0</span>));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>nil<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>((<span class="pl-k">void</span>*)<span class="pl-c1">NULL</span>, <span class="pl-c1">nil</span>());
+        <span class="pl-c1">ASSERT_THAT</span>((<span class="pl-k">void</span>*)<span class="pl-c1">0</span>, <span class="pl-c1">nil</span>());
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-v">nullptr</span>, <span class="pl-c1">nil</span>());
+    }
+};</pre></div>
+
+<h5>
+<a id="字符串" class="anchor" href="#%E5%AD%97%E7%AC%A6%E4%B8%B2" aria-hidden="true"><span class="octicon octicon-link"></span></a>字符串</h5>
+
+<table>
+<thead>
+<tr>
+<th>匹配器</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>contains_string</td>
+<td>断言是否包含子串</td>
+</tr>
+<tr>
+<td>contains_string_ignoring_case</td>
+<td>忽略大小写，断言是否包含子</td>
+</tr>
+<tr>
+<td>starts_with</td>
+<td>断言是否以该子串开头</td>
+</tr>
+<tr>
+<td>starts_with_ignoring_case</td>
+<td>忽略大小写，断言是否以该子串开头</td>
+</tr>
+<tr>
+<td>ends_with</td>
+<td>断言是否以该子串结尾</td>
+</tr>
+<tr>
+<td>ends_with_ignoring_case</td>
+<td>忽略大小写，断言是否以该子串结尾</td>
+</tr>
+</tbody>
+</table>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+
+USING_HAMCREST_NS
+
+<span class="pl-en">FIXTURE</span>(StartsWithTest)
+{
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>case sensitive<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby-cpp<span class="pl-pds">"</span></span>, <span class="pl-c1">starts_with</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby<span class="pl-pds">"</span></span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby-cpp<span class="pl-pds">"</span></span>, <span class="pl-c1">is</span>(<span class="pl-c1">starts_with</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby<span class="pl-pds">"</span></span>)));
+
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby-cpp<span class="pl-pds">"</span></span>), <span class="pl-c1">starts_with</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby<span class="pl-pds">"</span></span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby-cpp<span class="pl-pds">"</span></span>, <span class="pl-c1">starts_with</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby<span class="pl-pds">"</span></span>)));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby-cpp<span class="pl-pds">"</span></span>), <span class="pl-c1">starts_with</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby<span class="pl-pds">"</span></span>)));
+    }
+
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>ignoring case<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby-cpp<span class="pl-pds">"</span></span>, <span class="pl-c1">starts_with_ignoring_case</span>(<span class="pl-s"><span class="pl-pds">"</span>Ruby<span class="pl-pds">"</span></span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby-cpp<span class="pl-pds">"</span></span>, <span class="pl-c1">is</span>(<span class="pl-c1">starts_with_ignoring_case</span>(<span class="pl-s"><span class="pl-pds">"</span>Ruby<span class="pl-pds">"</span></span>)));
+
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby-cpp<span class="pl-pds">"</span></span>), <span class="pl-c1">starts_with_ignoring_case</span>(<span class="pl-s"><span class="pl-pds">"</span>RUBY<span class="pl-pds">"</span></span>));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-s"><span class="pl-pds">"</span>Ruby-Cpp<span class="pl-pds">"</span></span>, <span class="pl-c1">starts_with_ignoring_case</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>rUBY<span class="pl-pds">"</span></span>)));
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>RUBY-CPP<span class="pl-pds">"</span></span>), <span class="pl-c1">starts_with_ignoring_case</span>(<span class="pl-c1">std::string</span>(<span class="pl-s"><span class="pl-pds">"</span>ruby<span class="pl-pds">"</span></span>)));
+    }
+};</pre></div>
+
+<h5>
+<a id="浮点数" class="anchor" href="#%E6%B5%AE%E7%82%B9%E6%95%B0" aria-hidden="true"><span class="octicon octicon-link"></span></a>浮点数</h5>
+
+<table>
+<thead>
+<tr>
+<th>匹配器</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>close_to</td>
+<td>断言浮点数近似等于</td>
+</tr>
+<tr>
+<td>nan</td>
+<td>断言浮点数不是一个数字</td>
+</tr>
+</tbody>
+</table>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>magellan/magellan.hpp<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>math.h<span class="pl-pds">&gt;</span></span>
+
+USING_HAMCREST_NS
+
+<span class="pl-en">FIXTURE</span>(IsNanTest)
+{
+    <span class="pl-c1">TEST</span>(<span class="pl-s"><span class="pl-pds">"</span>double<span class="pl-pds">"</span></span>)
+    {
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">sqrt</span>(-<span class="pl-c1">1.0</span>), <span class="pl-c1">nan</span>());
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">sqrt</span>(-<span class="pl-c1">1.0</span>), <span class="pl-c1">is</span>(<span class="pl-c1">nan</span>()));
+
+        <span class="pl-c1">ASSERT_THAT</span>(<span class="pl-c1">1.0</span>/<span class="pl-c1">0.0</span>,  <span class="pl-c1">is_not</span>(<span class="pl-c1">nan</span>()));
+        <span class="pl-c1">ASSERT_THAT</span>(-<span class="pl-c1">1.0</span>/<span class="pl-c1">0.0</span>, <span class="pl-c1">is_not</span>(<span class="pl-c1">nan</span>()));
+    }
+};</pre></div>
+
+<h3>
+<a id="程序选项" class="anchor" href="#%E7%A8%8B%E5%BA%8F%E9%80%89%E9%A1%B9" aria-hidden="true"><span class="octicon octicon-link"></span></a>程序选项</h3>
+
+<div class="highlight highlight-cpp"><pre><span class="pl-en">TestOptions::TestOptions</span>() : desc(<span class="pl-s"><span class="pl-pds">"</span>magellan<span class="pl-pds">"</span></span>)
+{
+    desc.<span class="pl-c1">add</span>({
+        {<span class="pl-s"><span class="pl-pds">"</span>help,     h<span class="pl-pds">"</span></span>,   <span class="pl-s"><span class="pl-pds">"</span>help message<span class="pl-pds">"</span></span>},
+        {<span class="pl-s"><span class="pl-pds">"</span>filter,   f<span class="pl-pds">"</span></span>,   <span class="pl-s"><span class="pl-pds">"</span>--filter=pattern<span class="pl-pds">"</span></span>},
+        {<span class="pl-s"><span class="pl-pds">"</span>color,    c<span class="pl-pds">"</span></span>,   <span class="pl-s"><span class="pl-pds">"</span>--color=[yes|no]<span class="pl-pds">"</span></span>},
+        {<span class="pl-s"><span class="pl-pds">"</span>xml,      x<span class="pl-pds">"</span></span>,   <span class="pl-s"><span class="pl-pds">"</span>print test result into XML file<span class="pl-pds">"</span></span>},
+        {<span class="pl-s"><span class="pl-pds">"</span>list,     l<span class="pl-pds">"</span></span>,   <span class="pl-s"><span class="pl-pds">"</span>list all tests without running them<span class="pl-pds">"</span></span>},
+        {<span class="pl-s"><span class="pl-pds">"</span>progress, p<span class="pl-pds">"</span></span>,   <span class="pl-s"><span class="pl-pds">"</span>print test result in progress bar<span class="pl-pds">"</span></span>},
+        {<span class="pl-s"><span class="pl-pds">"</span>verbose,  v<span class="pl-pds">"</span></span>,   <span class="pl-s"><span class="pl-pds">"</span>verbosely list tests processed<span class="pl-pds">"</span></span>},
+        {<span class="pl-s"><span class="pl-pds">"</span>repeat,   r<span class="pl-pds">"</span></span>,   <span class="pl-s"><span class="pl-pds">"</span>how many times to repeat each test<span class="pl-pds">"</span></span>}
+    });
+
+    <span class="pl-c">// default value</span>
+    options[<span class="pl-s"><span class="pl-pds">"</span>color<span class="pl-pds">"</span></span>]  = <span class="pl-s"><span class="pl-pds">"</span>yes<span class="pl-pds">"</span></span>;
+    options[<span class="pl-s"><span class="pl-pds">"</span>repeat<span class="pl-pds">"</span></span>] = <span class="pl-s"><span class="pl-pds">"</span>1<span class="pl-pds">"</span></span>;
+}</pre></div>
+      </section>
+    </div>
+    <footer>
+      <p>Project maintained by <a href="https://github.com/horance-liu">horance-liu</a></p>
+      <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
