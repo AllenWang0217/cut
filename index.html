@@ -241,28 +241,33 @@
 <p>CMake的下载地址：<a href="http://www.cmake.org">http://www.cmake.org</a>。</p>
 
 <h4>
-<a id="安装l0-infra" class="anchor" href="#%E5%AE%89%E8%A3%85l0-infra" aria-hidden="true"><span class="octicon octicon-link"></span></a>安装l0-infra</h4>
+<a id="克隆magellan" class="anchor" href="#%E5%85%8B%E9%9A%86magellan" aria-hidden="true"><span class="octicon octicon-link"></span></a>克隆Magellan</h4>
 
-<p>Magellan依赖于l0-infra，所以必须先安装l0-infra。</p>
-
-<div class="highlight highlight-bash"><pre>$ git clone https://github.com/horance-liu/l0-infra.git
-$ <span class="pl-c1">cd</span> l0-infra
-$ mkdir build
-$ <span class="pl-c1">cd</span> build
-$ cmake ..
-$ make
-$ sudo make install</pre></div>
+<div class="highlight highlight-bash"><pre>$ git clone https://github.com/horance-liu/magellan.git
+$ <span class="pl-c1">cd</span> magellan
+$ git submodule init
+$ git submodule update</pre></div>
 
 <h4>
 <a id="安装magellan" class="anchor" href="#%E5%AE%89%E8%A3%85magellan" aria-hidden="true"><span class="octicon octicon-link"></span></a>安装Magellan</h4>
 
-<div class="highlight highlight-bash"><pre>$ git clone https://github.com/horance-liu/magellan.git
-$ <span class="pl-c1">cd</span> magellan
+<div class="highlight highlight-bash"><pre>$ <span class="pl-c1">cd</span> magellan
 $ mkdir build
 $ <span class="pl-c1">cd</span> build
 $ cmake ..
 $ make
-$ sudo make install</pre></div>
+$ sudo make install
+$ sudo ldconfig</pre></div>
+
+<h4>
+<a id="测试magellan" class="anchor" href="#%E6%B5%8B%E8%AF%95magellan" aria-hidden="true"><span class="octicon octicon-link"></span></a>测试Magellan</h4>
+
+<div class="highlight highlight-bash"><pre>$ <span class="pl-c1">cd</span> magellan/build
+$ cmake -DENABLE_TEST=on ..
+$ make
+$ <span class="pl-c1">test</span>/magellan-test
+$ lib/l0-infra/l0-infra-test
+$ lib/hamcrest/hamcrest-test</pre></div>
 
 <h3>
 <a id="破冰之旅" class="anchor" href="#%E7%A0%B4%E5%86%B0%E4%B9%8B%E6%97%85" aria-hidden="true"><span class="octicon octicon-link"></span></a>破冰之旅</h3>
@@ -310,7 +315,7 @@ test/*.c)
 
 <span class="pl-c1">add_executable</span>(quantity-test <span class="pl-v">${all_files}</span>)
 
-<span class="pl-c1">target_link_libraries</span>(quantity-test magellan l0-infra)</pre></div>
+<span class="pl-c1">target_link_libraries</span>(quantity-test magellan hamcrest l0-infra)</pre></div>
 
 <h5>
 <a id="构建" class="anchor" href="#%E6%9E%84%E5%BB%BA" aria-hidden="true"><span class="octicon octicon-link"></span></a>构建</h5>
